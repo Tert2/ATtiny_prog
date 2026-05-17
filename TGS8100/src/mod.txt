@@ -1,0 +1,56 @@
+
+module pillar(base, height, depth) {
+    linear_extrude(height = depth)
+        polygon(points=[
+            [0,0],         // 左下
+            [base,0],      // 右下
+            [base,height]  // 右上 (直角ここ)
+        ]);
+}
+
+union() {
+    union() {
+        translate([0, 2.5, 20]) {
+            cube([12, 2, 10]);
+        }
+        union() {
+            translate([17, 2.5, 20]) {
+                cube([50, 2, 10]);
+            }
+            union() {
+                translate([72, 2.5, 20]) {
+                    cube([14, 2, 10]);
+                }
+                union() {
+                    translate([84, 4, 20]) {
+                        cube([2, 16, 10]);
+                    }
+                    translate([84, 50-2.5, 20]) {
+                        cube([2, 2.5, 10]);
+                    }
+                }
+            }
+        }
+    }
+    union() {
+        union() {
+            union() {
+                cube([90, 50, 20]);
+                translate ([]) {
+
+                }
+            }
+            translate([86, 0, 20]) {
+                cube([4, 50, 10]);
+            }
+        }
+        union() {
+            translate([0,0,20]) {
+                cube([86, 2.5, 10]);
+            }
+            translate([90, 0, 0]) {
+                cube([60, 50, 2]);
+            }
+        }
+    }
+}

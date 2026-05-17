@@ -1,0 +1,46 @@
+  // if (digitalRead(X_BUT) == LOW && status == 0) {
+  //   status = 1;
+  // }
+  // if (digitalRead(X_BUT) == LOW && status == 1) {
+  //   motorControl(CW, X_DIR);
+  // }
+  // if((digitalRead(X_BUT) == HIGH || digitalRead(X_E) == LOW) && status == 1) {
+  //   motorStop(X_DIR);
+  //   status = 2;
+  // }
+
+  // if (digitalRead(Y_BUT) == LOW && status == 2) {
+  //   motorControl(CW, Y_DIR);
+  // }
+  // if((digitalRead(Y_BUT) == HIGH || digitalRead(Y_E) == LOW) && status == 1) {
+  //   motorStop(Y_DIR);
+  //   status = 2;
+  // }
+  // if(status == 2) {
+  //   motorControl(CW, Z_DIR);
+  //   delay(10000);
+  //   motorStop(Z_DIR);
+  //   motorControl(CW, ARM);
+  //   delay(5000);
+  //   motorStop(ARM);
+  //   motorControl(CCW, Z_DIR);
+  //   delay(30000);
+  //   motorStop(Z_DIR);
+  //   status = 3;
+  // }
+  // while (status == 3) {
+  //   if(digitalRead(X_S) == HIGH) {
+  //     motorControl(CCW, X_DIR);
+  //   } else {
+  //     motorStop(X_DIR);
+  //   }
+  //   if(digitalRead(Y_S) == HIGH) {
+  //     motorControl(CCW, Y_DIR);
+  //   } else {
+  //     motorStop(Y_DIR);
+  //   }
+  //   if(digitalRead(X_S) == LOW && digitalRead(Y_S) == LOW) {
+  //     status = 0;
+  //     break;
+  //   }
+  // }

@@ -5,11 +5,11 @@
 #include "SimpleYMF825.h"
 
 // Pin number
-#define SPI_CS 4  // ATtiny1604 の SS ピン
-#define SPI_MOSI 1
-#define SPI_MISO 2
-#define SPI_SCK  3
-#define SPI_RST  5
+#define SPI_CS PIN_PA4  // ATtiny1604 の SS ピン
+#define SPI_MOSI PIN_PA1
+#define SPI_MISO PIN_PA2
+#define SPI_SCK  PIN_PA3
+#define SPI_RST  PIN_PA5
 
 
 // FNUM table
@@ -72,24 +72,24 @@ static void init_YMF825(int drv_sel)
 {
     // reset YMF825
     digitalWrite(SPI_RST, LOW);
-    delay(10);
+    // delay(1);
     digitalWrite(SPI_RST, HIGH);
     
     // IOVDD = 5V or 3.3V
     spi_write(29, (drv_sel & 0x01) );
     
     spi_write( 2, 0x0E ); // analog block power down (AP0)
-    delay(1);
+    // delay(1);
     spi_write( 0, 0x01 ); // clock enable
     spi_write( 1, 0x00 ); // reset release
-    spi_write(26, 0xA3 ); // ??? (magic spell)
-    delay(1);
-    spi_write(26, 0x00 ); // ??? (magic spell)
-    delay(30);
+    // spi_write(26, 0xA3 ); // ??? (magic spell)
+    // delay(1);
+    // spi_write(26, 0x00 ); // ??? (magic spell)
+    // delay(30);
     spi_write( 2, 0x04 ); // analog block power down (AP1,AP3)
-    delay(1);
+    // delay(1);
     spi_write( 2, 0x00 ); // analog block power down (AP2)
-    delay(1);
+    // delay(1);
     
     spi_write(25, 0xF0 ); // master volume = +9dB ((0x00<<2):mute�`(0x3F<<2):+12dB)
     spi_write(27, 0x3F ); // interpolation max
@@ -213,15 +213,6 @@ void SimpleYMF825::begin(int drv_sel)
     init_ch();
 }
 
-uint8_t upper(uint8_t data)
-{
-    return ((data & 0xF0) >> 4)-1;
-}
-
-uint8_t lower(uint8_t data)
-{
-    return (data & 0x0F);
-}
 
 
 // key on
@@ -258,25 +249,25 @@ uint8_t lower(uint8_t data)
 // ch: channel number
 // octave: 1...8 (Middle C belongs to octave 4)
 // key: KEY_C ... KEY_B_SHARP
-void SimpleYMF825::keyon(uint8_t ch, uint8_t data)
+void SimpleYMF825::keyon(int ch, int octave, int key)
 {
     // channnel select
-    spi_write( 11, ch );
+    spi_write( 11, (uint8_t)ch );
     
     // key
-    spi_write( 13, FNUMH[(int)(lower(data))] | upper(data) );
-    spi_write( 14, FNUML[(int)(lower(data))] );
+    spi_write( 13, FNUMH[key] | (uint8_t)(octave-1) );
+    spi_write( 14, FNUML[key] );
     
     // key on
-    spi_write( 15, 0x40 | m_tone[(int)(ch)] );
+    spi_write( 15, 0x40 | m_tone[ch] );
 }
 
 // key off
 // ch: channel number
-void SimpleYMF825::keyoff(uint8_t ch)
+void SimpleYMF825::keyoff(int ch)
 {
     // channnel select
-    spi_write( 11, ch );
+    spi_write( 11, (uint8_t)ch );
     
     // key off
     spi_write( 15, 0x00 );
@@ -296,15 +287,15 @@ void SimpleYMF825::setTone(int ch, int tone)
 // ch: channel number
 // octave: 1...8 (Middle C belongs to octave 4)
 // key: KEY_C ... KEY_B_SHARP
-// void SimpleYMF825::setKey(int ch, int octave, int key)
-// {
-//     // channnel select
-//     spi_write( 11, (uint8_t)ch );
+void SimpleYMF825::setKey(int ch, int octave, int key)
+{
+    // channnel select
+    spi_write( 11, (uint8_t)ch );
     
-//     // key
-//     spi_write( 13, FNUMH[key] | (uint8_t)(octave-1) );
-//     spi_write( 14, FNUML[key] );
-// }
+    // key
+    spi_write( 13, FNUMH[key] | (uint8_t)(octave-1) );
+    spi_write( 14, FNUML[key] );
+}
 
 // set volume
 // ch: channel number
@@ -332,15 +323,15 @@ void SimpleYMF825::setMasterVolume(int vol)
 
 
 
-// void SimpleYMF825::key(uint8_t ch, uint8_t data, int time)
-// {
-//   keyon(ch, data);
-//   delay(time);
-//   keyoff(ch);
-// }
+void SimpleYMF825::key(int ch, int octave, int key, int time)
+{
+  keyon(ch, octave, key);
+  delay(time);
+  keyoff(ch);
+}
 
-// void SimpleYMF825::on(int ch, int octave, int key)
-// {
-//   keyoff(ch);
-//   keyon(ch, octave, key);
-// }
+void SimpleYMF825::on(int ch, int octave, int key)
+{
+  keyoff(ch);
+  keyon(ch, octave, key);
+}

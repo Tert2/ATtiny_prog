@@ -1,26 +1,16 @@
-// #include <Arduino.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <avr/io.h>
-#include <util/delay.h>
-#include <avr/interrupt.h>
+#include <Arduino.h>
 
-#define F_CPU 20000000UL
+#define F_CPU 20000000UL  // CPUクロック周波数
 
 #define DATA_BIT   4  // PA4
-#define OE_BIT     5  // PA5
+#define OE_BIT  5  // PA5
 #define LATCH_BIT  6  // PA6
-#define CLOCK_BIT  7  // PA7
+#define CLOCK_BIT 7  // PA7
 #define PRESSED(pin) (!(VPORTA.IN & (1 << (pin))))
-
-#define LEFT  1
+#define PULSE_PIN 10  // PB0
+#define AOUT_PIN  3   // PA3
+#define LEFT 1
 #define RIGHT 0
-
-#define PULSE_BIT 0   // PB0
-#define ADC_CH    3   // PA3
-
-// --- グローバル変数 ---
-volatile int voltage = 0;
 
 const uint8_t segnum[4]= {
   0b11111110, // 1(LEFT)
@@ -32,9 +22,16 @@ const uint8_t minnum[10] = {0x3F, 0x06, 0b01011011, 0x4F, 0x66, 0x6D, 0x7D, 0x07
 const uint8_t secnum[10] = {0x3F, 0x30, 0x5B, 0x79, 0x74, 0x6D, 0b01101111, 0b00111100, 0x7F, 0b01111101};
 const uint8_t wait[8] = {0x01, 0x02, 0x04, 0x08, 0x08, 0x10, 0x20, 0x01};
 
+
+  // const uint8_t MODE[3] = {0x40, 0x50, 0x60}; // mode data
+volatile uint8_t received_data = 0x00;
+volatile bool received_check = false;
+
+
+
 void ShiftInit() {
   _PROTECTED_WRITE(CLKCTRL.MCLKCTRLB, 0);  // disable the clock prescaler
-  VPORTA.DIR = 0xF0; // initialize VPORTA (PA4-7出力)
+  VPORTA.DIR = 0xF0; // initialize VPORTA
   PORTA.PIN1CTRL = PORT_PULLUPEN_bm;
   PORTA.PIN2CTRL = PORT_PULLUPEN_bm;
   VPORTA.OUT &= ~(1 << OE_BIT); // set OE_BIT to LOW
@@ -42,7 +39,7 @@ void ShiftInit() {
 
 void pulseClock() {
   VPORTA.OUT |= (1 << CLOCK_BIT); // set CLOCK_BIT to HIGH
-  _delay_us(1); // wait for 1 us
+  delay(1); // wait for 1 us
   VPORTA.OUT &= ~(1 << CLOCK_BIT); // set CLOCK_BIT to LOW
 }
 
@@ -78,92 +75,59 @@ void ShiftOut(uint16_t val, uint8_t LR) {
   uint8_t lower = lower8(val); // get the lower byte
   if(LR == LEFT) {
     myShiftOut_fast(upper, 0); // shift out the upper byte for LEFT
-    _delay_ms(1);
+    delay(1);
     myShiftOut_fast(lower, 1); // shift out the lower byte for LEFT
-    _delay_ms(1);
+    delay(1);
   } else {
     myShiftOut_fast(upper, 3); // shift out the upper byte for RIGHT
-    _delay_ms(1);
+    delay(1);
     myShiftOut_fast(lower, 2); // shift out the lower byte for RIGHT
-    _delay_ms(1);
+    delay(1);
   }
 }
 
-void printvoltage(int val) {
-  uint16_t left, right;
-  left = bitplus(minnum[(val%10000-val%1000)/1000], minnum[(val%1000-val%100)/100]); // combine upper and lower bytes for LEFT
-  right = bitplus(secnum[(val%100-val%10)/10], secnum[val%10]); // combine upper and lower bytes for RIGHT
-  ShiftOut(left, LEFT); // display on LEFT
-  ShiftOut(right, RIGHT); // display on RIGHT
-}
-
-// =====================================================
-//  ADC制御
-// =====================================================
-void ADC_Init(void) {
-    VPORTA.DIR &= ~(1 << ADC_CH);  // PA3を入力
-    PORTA.PIN3CTRL &= ~PORT_ISC_gm; // デフォルト入力設定
-
-    ADC0.CTRLC = ADC_PRESC_DIV4_gc     // 分周 = 4
-               | ADC_REFSEL_VDDREF_gc; // VDDを基準電圧に
-
-    ADC0.CTRLA = ADC_ENABLE_bm;        // ADC有効化
-    ADC0.MUXPOS = ADC_MUXPOS_AIN3_gc;  // 入力チャンネル = PA3(ADC3)
-}
-
-uint16_t ADC_Read(void) {
-    ADC0.COMMAND = ADC_STCONV_bm;              // 変換開始
-    while (!(ADC0.INTFLAGS & ADC_RESRDY_bm));  // 終了待ち
-    ADC0.INTFLAGS = ADC_RESRDY_bm;             // フラグクリア
-    return ADC0.RES;                           // 10bit結果
-}
-
-// =====================================================
-//  パルス制御
-// =====================================================
-void PulseInit(void) {
-    VPORTB.DIR |= (1 << PULSE_BIT);   // PB0出力
-    VPORTB.OUT &= ~(1 << PULSE_BIT);  // 初期はLow
-}
-
-// void Pulse2ms(void) {
-//     VPORTB.OUT |= (1 << PULSE_BIT);   // High
-//     _delay_ms(2);                     // 2msパルス幅
-//     VPORTB.OUT &= ~(1 << PULSE_BIT);  // Low
-// }
-
-int main() {
-  ShiftInit();    // 7セグ初期化
-  PulseInit();    // パルス出力初期化
-  ADC_Init();     // ADC初期化
-
-  uint16_t voltage = 0; // 初期電圧値
-  bool mode=false;
-
-  while(1){
-    if (!mode) {
-      ShiftOut(0x0000, LEFT);
-      ShiftOut(0x0000, RIGHT);
-      if (PRESSED(1)) {
-        mode = true;
-      }
-    }
-    if (mode) {
-      VPORTB.OUT |= (1 << PULSE_BIT);  // パルス出力 High
-      for (int i = 0; i < 200; i++) {  // 200回 = 2ms / 10µs
-        if (i == 100) {
-          voltage = ADC_Read();   // ADC結果読む（要: ADC初期化済み）
-        }
-          _delay_us(10); // 10µs 間隔でサンプリング
-      }
-      VPORTB.OUT &= ~(1 << PULSE_BIT); // パルス出力 Low
-      printvoltage(voltage);  // 最新の電圧値を表示
-      if (PRESSED(2)) {
-        mode = false;
-        voltage = 0;
-      }
-    }
+uint16_t shiftculc(uint16_t val, uint8_t LR) {
+  uint8_t lower, upper, templower, tempupper;
+  uint16_t result;
+  lower = val % 10;
+  upper = (val-lower) / 10;
+  if (LR == LEFT){
+    templower = minnum[lower];
+    tempupper = minnum[upper];
+  } else {
+    templower = secnum[lower];
+    tempupper = secnum[upper];
   }
-  return 0;
+  result = bitplus(tempupper, templower); // combine upper and lower bytes
+  return result; // return the combined value
 }
 
+
+
+int adval = 0; //ADC データ用変数
+float sensor_r; // センサ抵抗値用変数
+
+void setup() {
+  ShiftInit(); // initialize the shift register
+  pinMode(PULSE_PIN, OUTPUT); //PULSE ピンを出力に設定
+}
+
+void loop() {
+  digitalWrite(PULSE_PIN, HIGH); //PULSE ピン HIGH
+  delay(1); //OUT が安定するまでの待ち
+  adval = analogRead(AOUT_PIN); //ADC 取り込み
+  delay(1); // 時間調整
+  digitalWrite(PULSE_PIN, LOW); //PULSE ピンを LOW
+  if (adval != 0) {
+    sensor_r = 6144.0 / adval - 10;
+    int disp = (int)sensor_r; // 小数点以下切り捨て
+    if (disp < 0) disp = 0;
+    if (disp > 99) disp = 99;
+    ShiftOut(shiftculc(disp, LEFT), LEFT);
+    ShiftOut(shiftculc(disp, RIGHT), RIGHT);
+  } else {
+    ShiftOut(shiftculc(0, LEFT), LEFT);
+    ShiftOut(shiftculc(0, RIGHT), RIGHT);
+  }
+  delay(998); // 時間調整
+}

@@ -33,8 +33,8 @@ void setup()
     
     YMF825.setMasterVolume(32);
     
-    for(int i=0;i<4;i++){
-        YMF825.setVolume(i, 31);
+    for(int ch=0;ch<4;ch++){
+        YMF825.setVolume(ch, 25);
     }               
 }
 
@@ -178,9 +178,6 @@ void play2(void) {
   delay(x);
   YMF825.keyoff(c);
   }
-
-
-
 
 
 void loop()

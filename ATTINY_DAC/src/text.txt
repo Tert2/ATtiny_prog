@@ -1,0 +1,48 @@
+#include <Wire.h>
+
+// const int apin[] = {A4, A5, A6, A7};
+// const int NUM_PINS = sizeof(apin) / sizeof(apin[0]);
+// const long BAUD_RATE = 9600;
+// static uint8_t data[NUM_PINS];
+
+void setup() {
+    // Serial.begin(BAUD_RATE);#include <Arduino.h>
+#include <Wire.h>
+
+// I2Cスレーブデバイスのアドレス
+const int SLAVE_ADDRESS = 0x42;
+const int apin[] = {A4, A5, A6, A7};
+const int NUM_PINS = sizeof(apin) / sizeof(apin[0]);
+static uint8_t data[NUM_PINS];
+
+size_t master_send_data(int address, const uint8_t* data, size_t length) {
+    Wire.beginTransmission(address);
+    size_t bytesWritten = Wire.write(data, length);
+    uint8_t error = Wire.endTransmission();
+}
+
+void setup() {
+    analogReadResolution(10);
+    Wire.setClock(100000);
+    Wire.begin();
+    Serial.println("I2C Master Sender Ready.");
+    while (!Serial); 
+}
+
+void loop() {
+    for(int i=0;i<4;i++) data[i]=(uint8_t)(analogRead(apin[i])>>6&0x0F); 
+    uint8_t sensorData[2];
+    sensorData[0] = data[0]<<4|data[1]; // 1バイト目
+    sensorData[1] = data[2]<<4|data[3]; // 2バイト目
+    master_send_data(SLAVE_ADDRESS, sensorData, sizeof(sensorData));
+    delay(5);
+}
+    analogReadResolution(10);
+    Wire.begin();
+}
+
+// void loop() {
+//   for(int i=0;i<4;i++) data[i]=analogRead(apin[i])>>6&0x0F;
+//   Serial.printf("%d %d", data[0]<<4|data[1], data[2]<<4|data[3]);
+//   delay(1); 
+// }      
